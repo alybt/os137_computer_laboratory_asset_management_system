@@ -1,0 +1,7 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+# FastAPI's dependency-injection pattern intentionally calls Depends() in
+# argument defaults, so B008 produces false positives throughout the routers.
+ignore = ["B008"]
