@@ -67,7 +67,7 @@ function LabForm({ open, onClose, lab, onSaved }) {
       name: form.name.trim(),
       code: form.code.trim().toUpperCase(),
       building: form.building.trim() || null,
-      room: form.room.trim() || null,
+      ...(lab ? { room: form.room.trim() || null } : {}),
       capacity: form.capacity === '' ? null : Number(form.capacity),
       description: form.description.trim() || null,
     }
@@ -117,7 +117,7 @@ function LabForm({ open, onClose, lab, onSaved }) {
     >
       <form id="lab-form" onSubmit={submit} className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700">
+          <div className="rounded-[10px] border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700">
             {error}
           </div>
         )}
@@ -149,7 +149,7 @@ function LabForm({ open, onClose, lab, onSaved }) {
             />
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className={`grid grid-cols-1 gap-4 ${lab ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
           <div>
             <label className="label" htmlFor="lab_building">
               Building
@@ -162,7 +162,7 @@ function LabForm({ open, onClose, lab, onSaved }) {
               placeholder="Main Building"
             />
           </div>
-          <div>
+          {lab && <div>
             <label className="label" htmlFor="lab_room">
               Room
             </label>
@@ -173,7 +173,7 @@ function LabForm({ open, onClose, lab, onSaved }) {
               onChange={(event) => update('room', event.target.value)}
               placeholder="204"
             />
-          </div>
+          </div>}
           <div>
             <label className="label" htmlFor="lab_capacity">
               Capacity
@@ -207,17 +207,10 @@ function LabForm({ open, onClose, lab, onSaved }) {
   )
 }
 
-const ACCENTS = [
-  'from-brand-500 to-indigo-700',
-  'from-sky-500 to-blue-700',
-  'from-emerald-500 to-teal-700',
-  'from-amber-500 to-orange-600',
-  'from-rose-500 to-pink-600',
-  'from-violet-500 to-purple-700',
-]
+
 
 export default function Laboratories() {
-  const { isAdmin, canWrite } = useAuth()
+  const { isAdmin, canManageLabs: canWrite } = useAuth()
   const toast = useToast()
   const [labs, setLabs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -225,7 +218,7 @@ export default function Laboratories() {
   const [query, setQuery] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteTarget, setDeactivateTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
@@ -260,13 +253,13 @@ export default function Laboratories() {
     setFormOpen(true)
   }
 
-  const handleDelete = async () => {
+  const handleDeactivate = async () => {
     if (!deleteTarget) return
     setDeleting(true)
     try {
       await api.delete(`/laboratories/${deleteTarget.id}`)
-      toast.success('Laboratory deleted')
-      setDeleteTarget(null)
+      toast.success('Laboratory deactivated; history retained')
+      setDeactivateTarget(null)
       load()
     } catch (err) {
       toast.error(err.message)
@@ -295,7 +288,7 @@ export default function Laboratories() {
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="card flex items-center gap-4 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-brand-50 text-brand-600">
             <FlaskConical className="h-5 w-5" />
           </div>
           <div>
@@ -306,7 +299,7 @@ export default function Laboratories() {
           </div>
         </div>
         <div className="card flex items-center gap-4 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-sky-50 text-sky-600">
             <Users className="h-5 w-5" />
           </div>
           <div>
@@ -319,7 +312,7 @@ export default function Laboratories() {
           </div>
         </div>
         <div className="card flex items-center gap-4 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-emerald-50 text-emerald-600">
             <Boxes className="h-5 w-5" />
           </div>
           <div>
@@ -361,21 +354,19 @@ export default function Laboratories() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((lab, index) => (
-            <div key={lab.id} className="card overflow-hidden transition hover:shadow-md">
+          {filtered.map((lab) => (
+            <div key={lab.id} className="card overflow-hidden transition hover:border-slate-300">
               <div
-                className={`flex items-start gap-3 bg-gradient-to-br ${
-                  ACCENTS[index % ACCENTS.length]
-                } p-5 text-white`}
+                className="flex items-start gap-3 border-b border-slate-200 bg-slate-50 p-4 text-slate-800"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-transparent">
                   <FlaskConical className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold leading-snug">{lab.name}</p>
-                  <p className="mt-0.5 font-mono text-[11px] text-white/70">{lab.code}</p>
+                  <p className="mt-0.5 font-mono text-[11px] text-slate-500">{lab.code}</p>
                 </div>
-                <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold backdrop-blur">
+                <span className="rounded bg-slate-100 px-2.5 py-1 text-[10px] font-bold ">
                   {lab.asset_count} assets
                 </span>
               </div>
@@ -420,10 +411,10 @@ export default function Laboratories() {
                       <button
                         type="button"
                         className="btn-ghost !px-2.5 !py-1.5 text-xs !text-rose-600 hover:!bg-rose-50"
-                        onClick={() => setDeleteTarget(lab)}
+                        onClick={() => setDeactivateTarget(lab)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        Delete
+                        Deactivate
                       </button>
                     )}
                   </div>
@@ -443,12 +434,12 @@ export default function Laboratories() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={handleDeactivate}
         loading={deleting}
-        title={`Delete ${deleteTarget?.name || 'laboratory'}?`}
-        description="Laboratories with assets attached cannot be deleted. Reassign those assets first."
-        confirmLabel="Delete laboratory"
+        title={`Deactivate ${deleteTarget?.name || 'laboratory'}?`}
+        description="Laboratories with assets attached cannot be deactivated; history retained. Reassign those assets first."
+        confirmLabel="Deactivate laboratory"
       />
     </div>
   )

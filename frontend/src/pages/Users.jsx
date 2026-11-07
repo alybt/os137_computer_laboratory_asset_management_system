@@ -30,7 +30,7 @@ const EMPTY = {
   full_name: '',
   email: '',
   password: '',
-  role: 'viewer',
+  role: 'student',
   is_active: true,
 }
 
@@ -49,7 +49,7 @@ function UserForm({ open, onClose, user, onSaved }) {
             full_name: user.full_name || '',
             email: user.email || '',
             password: '',
-            role: user.role || 'viewer',
+            role: ({admin:'super_admin',technician:'it_personnel',viewer:'student'}[user.role] || user.role || 'student'),
             is_active: user.is_active,
           }
         : EMPTY,
@@ -117,7 +117,7 @@ function UserForm({ open, onClose, user, onSaved }) {
     >
       <form id="user-form" onSubmit={submit} className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700">
+          <div className="rounded-[10px] border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700">
             {error}
           </div>
         )}
@@ -145,7 +145,7 @@ function UserForm({ open, onClose, user, onSaved }) {
             className="input"
             value={form.email}
             onChange={(event) => update('email', event.target.value)}
-            placeholder="maria.santos@labassets.edu"
+            placeholder="name@university.edu"
           />
         </div>
         <div>
@@ -156,11 +156,11 @@ function UserForm({ open, onClose, user, onSaved }) {
             id="user_password"
             type="password"
             required={!user}
-            minLength={6}
+            minLength={12}
             className="input"
             value={form.password}
             onChange={(event) => update('password', event.target.value)}
-            placeholder={user ? '••••••••' : 'At least 6 characters'}
+            placeholder={user ? '••••••••' : 'At least 12 characters'}
           />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -174,7 +174,7 @@ function UserForm({ open, onClose, user, onSaved }) {
               value={form.role}
               onChange={(event) => update('role', event.target.value)}
             >
-              {Object.entries(ROLE).map(([value, meta]) => (
+              {Object.entries(ROLE).filter(([key]) => ['super_admin','property_admin','lab_admin','it_personnel','faculty','student'].includes(key)).map(([value, meta]) => (
                 <option key={value} value={value}>
                   {meta.label}
                 </option>
@@ -182,7 +182,7 @@ function UserForm({ open, onClose, user, onSaved }) {
             </select>
           </div>
           <div className="flex items-end pb-1">
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-3.5 py-2.5">
+            <label className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-slate-200 px-3.5 py-2.5">
               <input
                 type="checkbox"
                 checked={form.is_active}
@@ -193,7 +193,7 @@ function UserForm({ open, onClose, user, onSaved }) {
             </label>
           </div>
         </div>
-        <p className="rounded-xl bg-slate-50 px-3.5 py-2.5 text-xs leading-relaxed text-slate-500">
+        <p className="rounded-[10px] bg-slate-50 px-3.5 py-2.5 text-xs leading-relaxed text-slate-500">
           <strong className="text-slate-700">Administrators</strong> manage users and delete records.{' '}
           <strong className="text-slate-700">Technicians</strong> manage inventory, assignments, and
           maintenance. <strong className="text-slate-700">Viewers</strong> have read-only access.
@@ -213,7 +213,7 @@ export default function Users() {
   const [roleFilter, setRoleFilter] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteTarget, setDeactivateTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
@@ -256,13 +256,13 @@ export default function Users() {
     setFormOpen(true)
   }
 
-  const handleDelete = async () => {
+  const handleDeactivate = async () => {
     if (!deleteTarget) return
     setDeleting(true)
     try {
       await api.delete(`/users/${deleteTarget.id}`)
-      toast.success('User deleted')
-      setDeleteTarget(null)
+      toast.success('User deactivated; history retained')
+      setDeactivateTarget(null)
       load()
     } catch (err) {
       toast.error(err.message)
@@ -290,7 +290,7 @@ export default function Users() {
       <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           { label: 'Total users', value: users.length, icon: UsersIcon, color: 'brand' },
-          { label: 'Administrators', value: counts.admin, icon: ShieldCheck, color: 'violet' },
+          { label: 'Administrators', value: (counts.admin || 0) + (counts.super_admin || 0), icon: ShieldCheck, color: 'violet' },
           { label: 'Technicians', value: counts.technician, icon: UserCog, color: 'sky' },
           { label: 'Active accounts', value: counts.active, icon: UserRound, color: 'emerald' },
         ].map((stat) => (
@@ -331,7 +331,7 @@ export default function Users() {
             onChange={(event) => setRoleFilter(event.target.value)}
           >
             <option value="">All roles</option>
-            {Object.entries(ROLE).map(([value, meta]) => (
+            {Object.entries(ROLE).filter(([key]) => ['super_admin','property_admin','lab_admin','it_personnel','faculty','student'].includes(key)).map(([value, meta]) => (
               <option key={value} value={value}>
                 {meta.label}
               </option>
@@ -421,8 +421,8 @@ export default function Users() {
                           <button
                             type="button"
                             className="icon-btn hover:bg-rose-50 hover:text-rose-600"
-                            onClick={() => setDeleteTarget(user)}
-                            title="Delete user"
+                            onClick={() => setDeactivateTarget(user)}
+                            title="Deactivate user"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -446,12 +446,12 @@ export default function Users() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={handleDeactivate}
         loading={deleting}
-        title={`Delete ${deleteTarget?.full_name || 'user'}?`}
-        description="The user account will be permanently removed. Their activity history will remain."
-        confirmLabel="Delete user"
+        title={`Deactivate ${deleteTarget?.full_name || 'user'}?`}
+        description="The account is deactivated. Its identity and activity history are retained."
+        confirmLabel="Deactivate user"
       />
     </div>
   )

@@ -1,4 +1,4 @@
-const TOKEN_KEY = 'labassets_token'
+let csrfToken = null
 
 export const API_URL = (
   import.meta.env.VITE_API_URL || '/api'
@@ -13,13 +13,16 @@ export class ApiError extends Error {
   }
 }
 
-export function getToken() {
-  return localStorage.getItem(TOKEN_KEY)
-}
-
-export function setToken(token) {
-  if (token) localStorage.setItem(TOKEN_KEY, token)
-  else localStorage.removeItem(TOKEN_KEY)
+// Authentication uses an HttpOnly session cookie; no bearer tokens in localStorage.
+export function getToken() { return null }
+export function setToken() { /* Compatibility export; session is managed by the server. */ }
+async function csrf() {
+  if (!csrfToken) {
+    const response = await fetch(`${API_URL}/auth/csrf`, { credentials: 'same-origin' })
+    if (!response.ok) throw new ApiError('Cannot establish a secure session.', response.status)
+    csrfToken = (await response.json()).csrf
+  }
+  return csrfToken
 }
 
 function buildUrl(path, params) {
@@ -51,15 +54,15 @@ function readDetail(payload, fallback) {
 
 async function request(path, options = {}) {
   const { method = 'GET', body, params, headers = {} } = options
-  const token = getToken()
   const finalHeaders = { Accept: 'application/json', ...headers }
   if (body !== undefined) finalHeaders['Content-Type'] = 'application/json'
-  if (token) finalHeaders.Authorization = `Bearer ${token}`
+  if (!['GET', 'HEAD'].includes(method)) finalHeaders['X-CSRF-Token'] = await csrf()
 
   let response
   try {
     response = await fetch(buildUrl(path, params), {
       method,
+      credentials: 'same-origin',
       headers: finalHeaders,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
@@ -87,7 +90,10 @@ async function request(path, options = {}) {
   if (response.status === 204) return null
   const contentType = response.headers.get('content-type') || ''
   if (!contentType.includes('application/json')) return response
-  return response.json()
+  const payload = await response.json()
+  if (payload.csrf) csrfToken = payload.csrf
+  if (path === '/auth/logout') csrfToken = null
+  return payload
 }
 
 export const api = {
@@ -98,11 +104,10 @@ export const api = {
 }
 
 export async function downloadCsv(path, filename) {
-  const token = getToken()
   let response
   try {
     response = await fetch(buildUrl(path), {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'same-origin',
     })
   } catch {
     throw new ApiError('Cannot reach the API to download the report.', 0)

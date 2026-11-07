@@ -1,0 +1,6 @@
+-- Run INSIDE Ubuntu as a local administrator only after setup.py succeeds.
+-- Replace the password before execution. This intentionally fails if the account exists;
+-- inspect SHOW GRANTS and reuse its password instead of overwriting it.
+CREATE USER 'labassets_app'@'192.168.56.1' IDENTIFIED BY 'REPLACE_WITH_A_UNIQUE_LONG_PASSWORD';
+GRANT SELECT, INSERT ON labassets.* TO 'labassets_app'@'192.168.56.1';
+-- Import runtime-update-grants.sql next. No DDL, DELETE, FILE, or GRANT OPTION.

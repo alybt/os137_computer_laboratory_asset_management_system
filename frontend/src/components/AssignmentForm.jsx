@@ -119,13 +119,13 @@ export default function AssignmentForm({
     >
       <form id="assignment-form" onSubmit={submit} className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700">
+          <div className="rounded-[10px] border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700">
             {error}
           </div>
         )}
 
         {assignment ? (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="rounded-[10px] border border-slate-200 bg-slate-50 px-4 py-3">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Asset
             </p>

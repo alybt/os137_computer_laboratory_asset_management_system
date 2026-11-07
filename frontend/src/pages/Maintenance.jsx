@@ -28,7 +28,7 @@ import {
 } from '../components/ui'
 
 export default function Maintenance() {
-  const { isAdmin, canWrite } = useAuth()
+  const { isAdmin, canManageMaintenance: canWrite } = useAuth()
   const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -51,7 +51,7 @@ export default function Maintenance() {
   const [busyId, setBusyId] = useState(null)
   const [completeTarget, setCompleteTarget] = useState(null)
   const [completing, setCompleting] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteTarget, setArchiveTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -157,13 +157,13 @@ export default function Maintenance() {
     }
   }
 
-  const handleDelete = async () => {
+  const handleArchive = async () => {
     if (!deleteTarget) return
     setDeleting(true)
     try {
       await api.delete(`/maintenance/${deleteTarget.id}`)
-      toast.success('Maintenance record deleted')
-      setDeleteTarget(null)
+      toast.success('Maintenance record archived; history retained')
+      setArchiveTarget(null)
       load()
     } catch (err) {
       toast.error(err.message)
@@ -386,8 +386,8 @@ export default function Maintenance() {
                                 <button
                                   type="button"
                                   className="icon-btn hover:bg-rose-50 hover:text-rose-600"
-                                  onClick={() => setDeleteTarget(record)}
-                                  title="Delete record"
+                                  onClick={() => setArchiveTarget(record)}
+                                  title="Archive record"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -424,7 +424,7 @@ export default function Maintenance() {
       />
 
       {loadingAssets && formOpen && !editing && (
-        <div className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-lg">
+        <div className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm">
           Loading available assets…
         </div>
       )}
@@ -445,12 +445,12 @@ export default function Maintenance() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={handleArchive}
         loading={deleting}
-        title="Delete this maintenance record?"
-        description="The work order history will be removed. An open asset will be returned to available inventory."
-        confirmLabel="Delete record"
+        title="Archive this maintenance record?"
+        description="The work order is archived, not erased. Open work is cancelled and equipment availability is recalculated."
+        confirmLabel="Archive record"
       />
     </div>
   )

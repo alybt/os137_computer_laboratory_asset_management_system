@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
   CalendarDays,
-  CheckCircle2,
   KeyRound,
   Mail,
   Save,
-  Server,
   ShieldCheck,
   UserRound,
 } from 'lucide-react'
-import { API_URL, api } from '../lib/api'
+import { api } from '../lib/api'
 import { formatDate, formatDateTime } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -32,22 +30,12 @@ export default function Settings() {
     confirm_password: '',
   })
   const [savingPassword, setSavingPassword] = useState(false)
-  const [health, setHealth] = useState({ status: 'checking', version: '' })
+
 
   useEffect(() => {
     if (!user) return
     setProfile({ full_name: user.full_name || '', email: user.email || '' })
   }, [user])
-
-  useEffect(() => {
-    fetch(`${API_URL}/health`)
-      .then((response) => {
-        if (!response.ok) throw new Error('offline')
-        return response.json()
-      })
-      .then((data) => setHealth({ status: 'online', version: data.version, environment: data.environment }))
-      .catch(() => setHealth({ status: 'offline', version: '' }))
-  }, [])
 
   const saveProfile = async (event) => {
     event.preventDefault()
@@ -72,8 +60,8 @@ export default function Settings() {
       toast.error('New passwords do not match')
       return
     }
-    if (passwords.new_password.length < 6) {
-      toast.error('New password must be at least 6 characters')
+    if (passwords.new_password.length < 12) {
+      toast.error('New password must be at least 12 characters')
       return
     }
     setSavingPassword(true)
@@ -97,14 +85,14 @@ export default function Settings() {
     <div>
       <PageHeader
         title="Settings"
-        subtitle="Manage your profile, password, and system connection."
+        subtitle="Manage your account information and password."
       />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <div className="space-y-5">
           <div className="card overflow-hidden">
-            <div className="h-24 bg-gradient-to-br from-brand-500 via-brand-600 to-indigo-800" />
-            <div className="-mt-8 px-5 pb-5">
+            
+            <div className="p-5">
               <div className="flex items-end justify-between">
                 <div className="rounded-full ring-4 ring-white">
                   <Avatar name={user.full_name} size="lg" />
@@ -126,52 +114,7 @@ export default function Settings() {
             </div>
           </div>
 
-          <SectionCard title="System connection" icon={Server}>
-            <div className="space-y-3 px-5 py-5 text-xs">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-slate-500">Backend API</span>
-                <span
-                  className={`chip ${
-                    health.status === 'online'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : health.status === 'offline'
-                        ? 'bg-rose-50 text-rose-700'
-                        : 'bg-slate-100 text-slate-500'
-                  }`}
-                >
-                  {health.status === 'online' && <CheckCircle2 className="h-3 w-3" />}
-                  {health.status === 'online'
-                    ? 'Online'
-                    : health.status === 'offline'
-                      ? 'Offline'
-                      : 'Checking…'}
-                </span>
-              </div>
-              <div>
-                <p className="font-semibold text-slate-500">API URL</p>
-                <p className="mt-1 break-all rounded-lg bg-slate-50 px-2.5 py-2 font-mono text-[11px] text-slate-600">
-                  {API_URL}
-                </p>
-              </div>
-              {health.version && (
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-500">API version</span>
-                  <span className="font-mono text-slate-600">v{health.version}</span>
-                </div>
-              )}
-              {health.environment && (
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-500">Environment</span>
-                  <span className="text-slate-600">{health.environment}</span>
-                </div>
-              )}
-              <p className="rounded-lg bg-slate-50 px-2.5 py-2 text-[11px] leading-relaxed text-slate-400">
-                Frontend runs in WSL/Distrobox. Set <code className="font-mono">VITE_API_URL</code>{' '}
-                in the frontend <code className="font-mono">.env</code> to the VirtualBox
-                backend address.
-              </p>
-            </div>
-          </SectionCard>
+
         </div>
 
         <div className="space-y-5 xl:col-span-2">
@@ -265,7 +208,7 @@ export default function Settings() {
                     id="new_password"
                     type="password"
                     required
-                    minLength={6}
+                    minLength={12}
                     autoComplete="new-password"
                     className="input"
                     value={passwords.new_password}
@@ -285,7 +228,7 @@ export default function Settings() {
                     id="confirm_password"
                     type="password"
                     required
-                    minLength={6}
+                    minLength={12}
                     autoComplete="new-password"
                     className="input"
                     value={passwords.confirm_password}
@@ -329,7 +272,7 @@ export default function Settings() {
                 ].map((item) => (
                   <div
                     key={item.label}
-                    className={`rounded-xl border p-3.5 ${
+                    className={`rounded-[10px] border p-3.5 ${
                       item.active
                         ? 'border-brand-200 bg-brand-50/60'
                         : 'border-slate-100 bg-slate-50/50 opacity-70'

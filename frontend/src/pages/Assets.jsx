@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeftRight,
   Boxes,
-  ChevronRight,
+  Eye,
   Download,
   Pencil,
   Plus,
@@ -13,11 +13,11 @@ import {
 } from 'lucide-react'
 import { api, downloadCsv } from '../lib/api'
 import {
-  formatCurrency,
   formatDate,
   formatDateTime,
   todayISO,
 } from '../lib/format'
+import {assetCell,assetLabel} from '../lib/assetFields'
 import { ASSET_STATUS } from '../lib/constants'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -38,18 +38,25 @@ import {
 function DetailRow({ label, value }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+      <p className="text-xs font-medium text-slate-500">
         {label}
       </p>
-      <p className="mt-1 break-words text-sm font-medium text-slate-700">
-        {value || '—'}
+      <p className="mt-1 whitespace-pre-line break-words text-sm font-medium text-slate-700">
+        {value === null || value === undefined || value === '' ? '—' : value}
       </p>
     </div>
   )
 }
 
+const COLUMNS = ['asset_tag','property_number','name','category_id','laboratory_id','status','condition'].map(key=>[key,assetLabel(key)]).concat([['actions','Actions']])
+const DETAIL_GROUPS = [
+  ['Identification and placement',['asset_tag','property_number','name','category_id','laboratory_id']],
+  ['Property information',['description','sticker_date','purchase_order_number','fund_source','supplier','sticker_amount','sticker_amount_scope','sticker_location','sticker_end_user']],
+  ['Technical and acquisition details',['brand','model','serial_number','specifications','purchase_date','purchase_cost','warranty_expiry','notes']],
+]
+
 export default function Assets() {
-  const { isAdmin, canWrite } = useAuth()
+  const { isAdmin, canWrite, canManageLoans, canManageMaintenance } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -70,6 +77,16 @@ export default function Assets() {
   const [laboratoryId, setLaboratoryId] = useState('')
   const [sort, setSort] = useState('created_at:desc')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+  const requestSequence = useRef(0)
+  const [hiddenColumns, setHiddenColumns] = useState(() => {
+    try { const value = JSON.parse(localStorage.getItem('clam.inventory.columns') || '[]'); return Array.isArray(value) ? value.filter(key => COLUMNS.some(([name]) => name === key) && !['asset_tag','actions'].includes(key)) : [] } catch { return [] }
+  })
+  const toggleColumn = key => setHiddenColumns(previous => {
+    const next = previous.includes(key) ? previous.filter(value => value !== key) : [...previous, key]
+    try { localStorage.setItem('clam.inventory.columns', JSON.stringify(next)) } catch { /* Preferences are optional. */ }
+    return next
+  })
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -103,6 +120,7 @@ export default function Assets() {
   }, [searchParams, setSearchParams])
 
   const load = useCallback(async () => {
+    const sequence = ++requestSequence.current
     setFetching(true)
     setError('')
     const [sortBy, order] = sort.split(':')
@@ -116,17 +134,18 @@ export default function Assets() {
         sort_by: sortBy,
         order,
         page,
-        page_size: 15,
+        page_size: pageSize,
       })
+      if (sequence !== requestSequence.current) return
+      if (data.total > 0 && page > data.pages) { setPage(data.pages); return }
       setItems(data.items)
       setMeta(data)
     } catch (err) {
-      setError(err.message)
+      if (sequence === requestSequence.current) setError(err.message)
     } finally {
-      setFetching(false)
-      setLoading(false)
+      if (sequence === requestSequence.current) { setFetching(false); setLoading(false) }
     }
-  }, [debouncedQuery, status, condition, categoryId, laboratoryId, sort, page])
+  }, [debouncedQuery, status, condition, categoryId, laboratoryId, sort, page, pageSize])
 
   useEffect(() => {
     load()
@@ -164,7 +183,13 @@ export default function Assets() {
   }
 
   const handleSaved = () => {
+    if(!editing) resetFilters()
     load()
+  }
+
+  const openDelete = (asset) => {
+    setSelected(null)
+    setDeleteTarget(asset)
   }
 
   const handleDelete = async () => {
@@ -172,7 +197,7 @@ export default function Assets() {
     setDeleting(true)
     try {
       await api.delete(`/assets/${deleteTarget.id}`)
-      toast.success(`Asset ${deleteTarget.asset_tag} deleted`)
+      toast.success(`Asset ${deleteTarget.asset_tag} removed from active inventory; history retained`)
       setDeleteTarget(null)
       setSelected(null)
       load()
@@ -209,288 +234,65 @@ export default function Assets() {
 
   return (
     <div>
-      <PageHeader
-        title="Asset inventory"
-        subtitle="Search, filter, and manage every piece of laboratory equipment."
-        actions={
-          <>
-            <button type="button" className="btn-secondary" onClick={exportCsv}>
-              <Download className="h-4 w-4" />
-              Export CSV
-            </button>
-            {canWrite && (
-              <button type="button" className="btn-primary" onClick={openCreate}>
-                <Plus className="h-4 w-4" />
-                Add asset
-              </button>
-            )}
-          </>
-        }
-      />
-
-      <div className="card mb-4 p-3 sm:p-4">
-        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-12">
-          <SearchInput
-            value={query}
-            onChange={(value) => {
-              setQuery(value)
-              setPage(1)
-            }}
-            placeholder="Search tag, name, brand, model, or serial…"
-            className="xl:col-span-4"
-          />
-          <select
-            className="select xl:col-span-2"
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="">All statuses</option>
-            {Object.entries(ASSET_STATUS).map(([value, meta]) => (
-              <option key={value} value={value}>
-                {meta.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select xl:col-span-2"
-            value={categoryId}
-            onChange={(event) => {
-              setCategoryId(event.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="">All categories</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select xl:col-span-2"
-            value={laboratoryId}
-            onChange={(event) => {
-              setLaboratoryId(event.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="">All laboratories</option>
-            {laboratories.map((lab) => (
-              <option key={lab.id} value={lab.id}>
-                {lab.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select xl:col-span-2"
-            value={sort}
-            onChange={(event) => {
-              setSort(event.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="created_at:desc">Newest first</option>
-            <option value="name:asc">Name A–Z</option>
-            <option value="asset_tag:asc">Asset tag A–Z</option>
-            <option value="purchase_cost:desc">Highest value</option>
-            <option value="warranty_expiry:asc">Warranty expiry</option>
-          </select>
+      <PageHeader title="Asset inventory" subtitle="University equipment and official property records" />
+      <section className="inventory-panel" aria-label="Asset inventory">
+        <div className="inventory-toolbar">
+          <SearchInput value={query} onChange={value => { setQuery(value); setPage(1) }} placeholder="Search tag, property number, name or serial" className="min-w-52 flex-1" />
+          <details className="columns-menu"><summary className="btn-secondary">Columns</summary><div>
+            {COLUMNS.filter(([key]) => !['asset_tag','actions'].includes(key)).map(([key,label]) => <label className="flex items-center gap-2 py-1.5 text-xs" key={key}>
+              <input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => toggleColumn(key)}/>{label}
+            </label>)}
+          </div></details>
+          <button type="button" className="btn-secondary" onClick={exportCsv} title="Exports the complete authorized inventory, not only these filters"><Download size={16}/>Export all CSV</button>
+          {canWrite && <button type="button" className="btn-primary" onClick={openCreate}><Plus size={16}/>Add asset</button>}
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <span className="text-xs font-semibold text-slate-500">{resultLabel}</span>
-          {hasFilters && (
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700"
-            >
-              <RotateCcw className="h-3 w-3" />
-              Reset filters
-            </button>
-          )}
-          {fetching && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
-              <Spinner className="h-3.5 w-3.5" /> Updating…
-            </span>
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <select
-              className="select !w-auto !py-1.5 text-xs"
-              value={condition}
-              onChange={(event) => {
-                setCondition(event.target.value)
-                setPage(1)
-              }}
-            >
-              <option value="">Any condition</option>
-              {['new', 'good', 'fair', 'poor', 'damaged'].map((value) => (
-                <option key={value} value={value}>
-                  {value.charAt(0).toUpperCase() + value.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="inventory-filters">
+          <select aria-label="Filter status" className="select" value={status} onChange={event => {setStatus(event.target.value);setPage(1)}}>
+            <option value="">All statuses</option>{['available','assigned','maintenance','retired','lost'].map(key => <option key={key} value={key}>{ASSET_STATUS[key].label}</option>)}
+          </select>
+          <select aria-label="Filter category" className="select" value={categoryId} onChange={event => {setCategoryId(event.target.value);setPage(1)}}>
+            <option value="">All categories</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select aria-label="Filter laboratory" className="select" value={laboratoryId} onChange={event => {setLaboratoryId(event.target.value);setPage(1)}}>
+            <option value="">All laboratories</option>{laboratories.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+          <select aria-label="Filter condition" className="select" value={condition} onChange={event => {setCondition(event.target.value);setPage(1)}}>
+            <option value="">All conditions</option>{['new','good','fair','poor','damaged','Excellent','Unusable'].map(key => <option key={key} value={key}>{key.charAt(0).toUpperCase()+key.slice(1)}</option>)}
+          </select>
+          <select aria-label="Sort inventory" className="select" value={sort} onChange={event => {setSort(event.target.value);setPage(1)}}>
+            <option value="created_at:desc">Newest first</option><option value="name:asc">Name A–Z</option><option value="asset_tag:asc">Asset tag A–Z</option><option value="purchase_cost:desc">Highest individual cost</option><option value="purchase_date:asc">Acquisition date</option>
+          </select>
+          {hasFilters && <button className="btn-ghost" onClick={resetFilters}><RotateCcw size={14}/>Reset</button>}
         </div>
-      </div>
-
-      {loading ? (
-        <LoadingBlock label="Loading inventory…" />
-      ) : error ? (
-        <ErrorState message={error} onRetry={load} />
-      ) : (
-        <div className={`card overflow-hidden transition ${fetching ? 'opacity-70' : ''}`}>
-          {items.length === 0 ? (
-            <EmptyState
-              icon={Boxes}
-              title={hasFilters ? 'No matching assets' : 'No assets yet'}
-              description={
-                hasFilters
-                  ? 'Try a different search term or clear the filters.'
-                  : 'Register your first laboratory asset to get started.'
-              }
-              action={
-                hasFilters ? (
-                  <button type="button" className="btn-secondary" onClick={resetFilters}>
-                    Clear filters
-                  </button>
-                ) : canWrite ? (
-                  <button type="button" className="btn-primary" onClick={openCreate}>
-                    <Plus className="h-4 w-4" /> Add asset
-                  </button>
-                ) : null
-              }
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px]">
-                <thead className="border-b border-slate-100 bg-slate-50/70">
-                  <tr>
-                    <th className="table-th">Asset</th>
-                    <th className="table-th">Category</th>
-                    <th className="table-th">Laboratory</th>
-                    <th className="table-th">Status</th>
-                    <th className="table-th">Condition</th>
-                    <th className="table-th">Assigned to</th>
-                    <th className="table-th text-right">Value</th>
-                    <th className="table-th text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {items.map((asset) => (
-                    <tr
-                      key={asset.id}
-                      className="cursor-pointer transition hover:bg-slate-50/80"
-                      onClick={() => setSelected(asset)}
-                    >
-                      <td className="table-td">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white"
-                            style={{
-                              backgroundColor: asset.category_color || '#64748b',
-                            }}
-                          >
-                            <Boxes className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold text-slate-900">
-                              {asset.name}
-                            </p>
-                            <p className="font-mono text-[11px] text-slate-400">
-                              {asset.asset_tag}
-                              {asset.brand ? ` · ${asset.brand}` : ''}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="table-td">
-                        <span className="inline-flex items-center gap-2 text-xs font-medium">
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{
-                              backgroundColor: asset.category_color || '#94a3b8',
-                            }}
-                          />
-                          {asset.category_name || 'Uncategorized'}
-                        </span>
-                      </td>
-                      <td className="table-td text-xs">
-                        {asset.laboratory_name || '—'}
-                      </td>
-                      <td className="table-td">
-                        <StatusBadge kind="asset" value={asset.status} />
-                      </td>
-                      <td className="table-td">
-                        <StatusBadge kind="condition" value={asset.condition} />
-                      </td>
-                      <td className="table-td">
-                        {asset.active_assignment ? (
-                          <div>
-                            <p className="text-xs font-semibold text-slate-700">
-                              {asset.active_assignment.borrower_name}
-                            </p>
-                            <p className="text-[11px] text-slate-400">
-                              Due {formatDate(asset.active_assignment.due_date)}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="table-td text-right text-xs font-semibold text-slate-700">
-                        {formatCurrency(asset.purchase_cost)}
-                      </td>
-                      <td className="table-td text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {canWrite && (
-                            <button
-                              type="button"
-                              className="icon-btn"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                openEdit(asset)
-                              }}
-                              title="Edit asset"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                          )}
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              className="icon-btn hover:bg-rose-50 hover:text-rose-600"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                setDeleteTarget(asset)
-                              }}
-                              title="Delete asset"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                          <ChevronRight className="h-4 w-4 text-slate-300" />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {items.length > 0 && (
-            <Pagination
-              page={meta.page}
-              pages={meta.pages}
-              total={meta.total}
-              pageSize={meta.page_size}
-              onPageChange={setPage}
-            />
-          )}
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-3 py-2 text-xs text-slate-600" aria-live="polite">
+          <span>{resultLabel}</span>{fetching && <span className="inline-flex items-center gap-1"><Spinner className="h-3 w-3"/>Updating…</span>}
+          <label className="ml-auto flex items-center gap-2">Rows per page
+            <select className="select !w-auto !py-1" value={pageSize} onChange={event => {setPageSize(Number(event.target.value));setPage(1)}}>{[15,25,50,100].map(size => <option key={size}>{size}</option>)}</select>
+          </label>
         </div>
-      )}
+        {loading ? <LoadingBlock label="Loading inventory…"/> : error ? <ErrorState message={error} onRetry={load}/> : items.length === 0 ?
+          <EmptyState icon={Boxes} title={hasFilters ? 'No matching assets' : 'No assets yet'} description={hasFilters ? 'Adjust or clear the filters.' : 'Register one record for each individually tagged item.'}
+            action={hasFilters ? <button className="btn-secondary" onClick={resetFilters}>Clear filters</button> : canWrite ? <button className="btn-primary" onClick={openCreate}>Add asset</button> : null}/>
+          : <div className="inventory-scroll" tabIndex={0} role="region" aria-label="Scrollable asset records">
+            <table className="inventory-table"><caption className="sr-only">Asset inventory. Individual item cost excludes unallocated package property amounts.</caption>
+              <thead><tr>{COLUMNS.filter(([key]) => !hiddenColumns.includes(key)).map(([key,label]) => <th scope="col" key={key} className={`table-th ${key === 'asset_tag' ? 'identity-column' : key === 'actions' ? 'actions-column' : ''}`}>{label}</th>)}</tr></thead>
+              <tbody>{items.map(asset => <tr key={asset.id}>{COLUMNS.filter(([key]) => !hiddenColumns.includes(key)).map(([key]) => {
+                let content = assetCell(asset,key)
+                if (key === 'asset_tag' || key === 'name') content = <button className="inventory-link font-medium" onClick={() => setSelected(asset)}>{asset[key] || '—'}</button>
+                if (key === 'status') content = <StatusBadge kind="asset" value={asset.status}/>
+                if (key === 'condition') content = <StatusBadge kind="condition" value={asset.condition}/>
+                if (key === 'assigned_user') content = asset.active_assignment?.borrower_name || '—'
+                if (key === 'actions') content = <div className="flex gap-1">
+                  <button className="icon-btn" aria-label={`View ${asset.name}`} title="View asset" onClick={() => setSelected(asset)}><Eye size={16}/></button>
+                  {canWrite && <button className="icon-btn" aria-label={`Edit ${asset.name}`} title="Edit asset" onClick={() => openEdit(asset)}><Pencil size={16}/></button>}
+                  {isAdmin && <button type="button" className="btn-ghost !gap-1.5 !px-2 !py-1.5 !text-rose-700 hover:!bg-rose-50" aria-label={`Delete ${asset.name} from active inventory`} title="Delete from active inventory; retain history" onClick={() => openDelete(asset)}><Trash2 size={16}/>Delete</button>}
+                </div>
+                return <td key={key} className={`table-td ${['description','specifications','notes'].includes(key)?'asset-long-text':''} ${key === 'asset_tag' ? 'identity-column' : key === 'actions' ? 'actions-column' : ''}`} title={['description','specifications','notes'].includes(key)?String(asset[key] ?? ''):undefined}>{content}</td>
+              })}</tr>)}</tbody>
+            </table>
+          </div>}
+        {!loading && !error && meta.total > 0 && <Pagination page={meta.page} pages={meta.pages} total={meta.total} pageSize={meta.page_size} onPageChange={setPage}/>}
+      </section>
 
       <AssetForm
         open={formOpen}
@@ -518,7 +320,7 @@ export default function Assets() {
               <button type="button" className="btn-secondary" onClick={() => setSelected(null)}>
                 Close
               </button>
-              {canWrite && selected.status === 'available' && (
+              {canManageLoans && selected.status === 'available' && (
                 <button
                   type="button"
                   className="btn-secondary"
@@ -531,7 +333,7 @@ export default function Assets() {
                   Issue asset
                 </button>
               )}
-              {canWrite && (
+              {canManageMaintenance && (
                 <button
                   type="button"
                   className="btn-secondary"
@@ -567,23 +369,23 @@ export default function Assets() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-5 rounded-xl bg-slate-50 p-4 sm:grid-cols-3">
-              <DetailRow label="Category" value={selected.category_name} />
-              <DetailRow label="Laboratory" value={selected.laboratory_name} />
-              <DetailRow label="Condition" value={selected.condition} />
-              <DetailRow label="Brand" value={selected.brand} />
-              <DetailRow label="Model" value={selected.model} />
-              <DetailRow label="Serial number" value={selected.serial_number} />
-              <DetailRow label="Supplier" value={selected.supplier} />
-              <DetailRow label="Purchase date" value={formatDate(selected.purchase_date)} />
-              <DetailRow label="Purchase cost" value={formatCurrency(selected.purchase_cost)} />
-              <DetailRow label="Warranty expiry" value={formatDate(selected.warranty_expiry)} />
-              <DetailRow label="Added" value={formatDateTime(selected.created_at)} />
-              <DetailRow label="Updated" value={formatDateTime(selected.updated_at)} />
+            {DETAIL_GROUPS.map(([title,keys]) => (
+              <section key={title} className="rounded-[10px] border border-slate-200 p-4">
+                <h3 className="mb-4 text-sm font-semibold text-slate-900">{title}</h3>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  {keys.map(key => <DetailRow key={key} label={assetLabel(key)} value={assetCell(selected,key)}/>)}
+                </div>
+              </section>
+            ))}
+            <div className="grid grid-cols-1 gap-5 rounded-[10px] bg-slate-50 p-4 sm:grid-cols-2">
+              <DetailRow label="Custodian (linked account)" value={selected.custodian_name}/>
+              <DetailRow label="Assigned borrower" value={selected.active_assignment?.borrower_name}/>
+              <DetailRow label="Added" value={formatDateTime(selected.created_at)}/>
+              <DetailRow label="Updated" value={formatDateTime(selected.updated_at)}/>
             </div>
 
             {selected.active_assignment && (
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+              <div className="rounded-[10px] border border-indigo-100 bg-indigo-50/60 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
@@ -626,37 +428,12 @@ export default function Assets() {
               </div>
             )}
 
-            {(selected.description || selected.notes) && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {selected.description && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Description
-                    </p>
-                    <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-600">
-                      {selected.description}
-                    </p>
-                  </div>
-                )}
-                {selected.notes && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Internal notes
-                    </p>
-                    <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-600">
-                      {selected.notes}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
             {isAdmin && (
               <div className="flex justify-end border-t border-slate-100 pt-4">
                 <button
                   type="button"
                   className="btn-ghost !text-rose-600 hover:!bg-rose-50"
-                  onClick={() => setDeleteTarget(selected)}
+                  onClick={() => openDelete(selected)}
                 >
                   <Trash2 className="h-4 w-4" />
                   Delete asset
@@ -673,7 +450,7 @@ export default function Assets() {
         onConfirm={handleDelete}
         loading={deleting}
         title={`Delete ${deleteTarget?.asset_tag || 'asset'}?`}
-        description="This removes the asset and its assignment/maintenance history."
+        description="Remove this asset from active inventory? Its record and history will be retained. Equipment with unresolved assignments, repairs, or reservations cannot be deleted."
         confirmLabel="Delete asset"
       />
     </div>

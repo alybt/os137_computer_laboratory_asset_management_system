@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
 import {
   Boxes,
   CircleDollarSign,
@@ -10,7 +10,10 @@ import {
 } from 'lucide-react'
 import { api, downloadCsv } from '../lib/api'
 import { formatCurrency, formatDate, formatNumber, todayISO } from '../lib/format'
-import { MAINTENANCE_STATUS } from '../lib/constants'
+import { ASSET_STATUS, ASSET_CONDITION, MAINTENANCE_STATUS } from '../lib/constants'
+import { STATUS_COLORS, SOLID_COLORS } from '../lib/chartConfig'
+import ChartMessage from '../components/ChartMessage'
+const DashboardChart = lazy(() => import('../components/DashboardChart'))
 import { useToast } from '../context/ToastContext'
 import {
   ErrorState,
@@ -20,50 +23,17 @@ import {
   StatCard,
 } from '../components/ui'
 
-const STATUS_COLORS = {
-  available: '#10b981',
-  assigned: '#6366f1',
-  maintenance: '#f59e0b',
-  retired: '#94a3b8',
-  lost: '#ef4444',
-}
-
-const CONDITION_COLORS = {
-  new: '#10b981',
-  good: '#0ea5e9',
-  fair: '#f59e0b',
-  poor: '#f97316',
-  damaged: '#ef4444',
-}
-
-function BarGroup({ items, colors = {} }) {
-  const max = Math.max(...items.map((item) => item.value), 1)
-  return (
-    <div className="space-y-4 px-5 py-5">
-      {items.map((item) => (
-        <div key={item.label}>
-          <div className="mb-1.5 flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold capitalize text-slate-600">
-              {item.label.replace(/_/g, ' ')}
-            </span>
-            <span className="text-xs font-bold text-slate-900">
-              {formatNumber(item.value)}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.max((item.value / max) * 100, 2)}%`,
-                backgroundColor:
-                  item.color || colors[item.label] || '#6366f1',
-              }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
+const CONDITION_COLORS = {new:'#347969',excellent:'#347969',good:'#4d7399',fair:'#b17b35',poor:'#a16b3e',damaged:'#aa4545',unusable:'#aa4545'}
+function ReportChart({items,title,kind='horizontal',type='assets'}) {
+  if(!Array.isArray(items)) return <ChartMessage error>Report data is unavailable.</ChartMessage>
+  if(items.length===0) return <ChartMessage>No recorded data for this report.</ChartMessage>
+  const map=type==='status'?ASSET_STATUS:type==='condition'?ASSET_CONDITION:type==='maintenance'?MAINTENANCE_STATUS:{}
+  const labels=items.map(item=>map[item.label]?.label || String(item.label).replaceAll('_',' '))
+  const colors=items.map((item,i)=>type==='status'?STATUS_COLORS[String(item.label).toLowerCase()] || '#697586':type==='condition'?CONDITION_COLORS[String(item.label).toLowerCase()] || '#697586':SOLID_COLORS[i%SOLID_COLORS.length])
+  return <Suspense fallback={<ChartMessage>Preparing report chart…</ChartMessage>}>
+    <DashboardChart title={title} kind={kind} labels={labels} series={[{label:type==='maintenance'?'Work orders':'Assets',values:items.map(item=>Number(item.value)),colors}]}
+      totalLabel={type==='maintenance'?'Recorded work orders':'Registered assets'} emptyLabel="No recorded data for this report."/>
+  </Suspense>
 }
 
 const EXPORTS = [
@@ -182,16 +152,16 @@ export default function Reports() {
 
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
         <SectionCard title="Assets by status" subtitle="Lifecycle distribution">
-          <BarGroup items={summary.by_status} colors={STATUS_COLORS} />
+          <ReportChart title="Assets by status" kind="doughnut" type="status" items={summary.by_status} />
         </SectionCard>
         <SectionCard title="Assets by condition" subtitle="Physical condition assessment">
-          <BarGroup items={summary.by_condition} colors={CONDITION_COLORS} />
+          <ReportChart title="Assets by condition" type="condition" items={summary.by_condition} />
         </SectionCard>
         <SectionCard title="Assets by category" subtitle="Inventory mix">
-          <BarGroup items={summary.by_category} />
+          <ReportChart title="Assets by category" items={summary.by_category} />
         </SectionCard>
         <SectionCard title="Assets by laboratory" subtitle="Physical location">
-          <BarGroup items={summary.by_laboratory} />
+          <ReportChart title="Assets by laboratory" kind="bar" items={summary.by_laboratory} />
         </SectionCard>
       </div>
 
@@ -231,33 +201,7 @@ export default function Reports() {
         </SectionCard>
 
         <SectionCard title="Maintenance overview" subtitle="Work order status mix">
-          <div className="space-y-3 px-5 py-5">
-            {summary.maintenance_by_status.map((item) => {
-              const meta = MAINTENANCE_STATUS[item.label]
-              return (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between rounded-xl border border-slate-100 px-3.5 py-3"
-                >
-                  <span className="text-xs font-semibold text-slate-600">
-                    {meta?.label || item.label}
-                  </span>
-                  <span className="text-sm font-bold text-slate-900">{item.value}</span>
-                </div>
-              )
-            })}
-            <div className="rounded-xl bg-slate-900 px-4 py-3.5 text-white">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Total assets
-              </p>
-              <p className="mt-1 text-2xl font-bold">
-                {formatNumber(summary.totals.assets)}
-              </p>
-              <p className="mt-0.5 text-[11px] text-slate-400">
-                {formatCurrency(summary.totals.total_value)} total recorded value
-              </p>
-            </div>
-          </div>
+          <ReportChart title="Maintenance work order status" type="maintenance" items={summary.maintenance_by_status} />
         </SectionCard>
       </div>
 
@@ -270,7 +214,7 @@ export default function Reports() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {EXPORTS.map((item) => (
             <div key={item.key} className="card p-5">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.color}`}>
+              <div className={`flex h-10 w-10 items-center justify-center rounded-[10px] ${item.color}`}>
                 <item.icon className="h-5 w-5" />
               </div>
               <h3 className="mt-3 text-sm font-bold text-slate-900">{item.title}</h3>
@@ -296,7 +240,7 @@ export default function Reports() {
       </div>
 
       <p className="mt-6 text-center text-[11px] text-slate-400">
-        Computer Laboratory Asset Management System · generated by LabAssets
+        CLAM — Computer Laboratory Asset Management
       </p>
     </div>
   )

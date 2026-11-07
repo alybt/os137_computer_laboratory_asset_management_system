@@ -1,32 +1,30 @@
+// Solid semantic indicators. Values and compatibility aliases remain unchanged.
+const badge = tone => `status-badge badge-${tone}`
 export const ASSET_STATUS = {
-  available: { label: 'Available', className: 'chip bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', dot: 'bg-emerald-500' },
-  assigned: { label: 'Assigned', className: 'chip bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200', dot: 'bg-indigo-500' },
-  maintenance: { label: 'Maintenance', className: 'chip bg-amber-50 text-amber-700 ring-1 ring-amber-200', dot: 'bg-amber-500' },
-  retired: { label: 'Retired', className: 'chip bg-slate-100 text-slate-600 ring-1 ring-slate-200', dot: 'bg-slate-400' },
-  lost: { label: 'Lost', className: 'chip bg-rose-50 text-rose-700 ring-1 ring-rose-200', dot: 'bg-rose-500' },
+  available: { label:'Available', className:badge('green'), dot:'bg-emerald-600' },
+  assigned: { label:'Assigned', className:badge('blue'), dot:'bg-sky-700' },
+  maintenance: { label:'Maintenance', className:badge('amber'), dot:'bg-amber-700' },
+  retired: { label:'Retired', className:badge('neutral'), dot:'bg-slate-500' },
+  lost: { label:'Lost', className:badge('red'), dot:'bg-rose-700' },
 }
-
 export const ASSET_CONDITION = {
-  new: { label: 'New', className: 'chip bg-emerald-50 text-emerald-700' },
-  good: { label: 'Good', className: 'chip bg-sky-50 text-sky-700' },
-  fair: { label: 'Fair', className: 'chip bg-amber-50 text-amber-700' },
-  poor: { label: 'Poor', className: 'chip bg-orange-50 text-orange-700' },
-  damaged: { label: 'Damaged', className: 'chip bg-rose-50 text-rose-700' },
+  new:{label:'New',className:badge('green')},
+  good:{label:'Good',className:badge('blue')},
+  fair:{label:'Fair',className:badge('amber')},
+  poor:{label:'Poor',className:badge('orange')},
+  damaged:{label:'Damaged',className:badge('red')},
 }
-
 export const ASSIGNMENT_STATUS = {
-  active: { label: 'Active', className: 'chip bg-indigo-50 text-indigo-700' },
-  overdue: { label: 'Overdue', className: 'chip bg-rose-50 text-rose-700' },
-  returned: { label: 'Returned', className: 'chip bg-slate-100 text-slate-600' },
+  active:{label:'Active',className:badge('blue')},
+  overdue:{label:'Overdue',className:badge('red')},
+  returned:{label:'Returned',className:badge('neutral')},
 }
-
 export const MAINTENANCE_STATUS = {
-  scheduled: { label: 'Scheduled', className: 'chip bg-sky-50 text-sky-700' },
-  in_progress: { label: 'In progress', className: 'chip bg-amber-50 text-amber-700' },
-  completed: { label: 'Completed', className: 'chip bg-emerald-50 text-emerald-700' },
-  cancelled: { label: 'Cancelled', className: 'chip bg-slate-100 text-slate-600' },
+  scheduled:{label:'Scheduled',className:badge('blue')},
+  in_progress:{label:'In progress',className:badge('amber')},
+  completed:{label:'Completed',className:badge('green')},
+  cancelled:{label:'Cancelled',className:badge('neutral')},
 }
-
 export const MAINTENANCE_TYPE = {
   preventive: 'Preventive',
   corrective: 'Corrective',
@@ -48,3 +46,10 @@ export const ACTION_ICONS = {
   assign: 'arrow-up-right',
   return: 'arrow-down-left',
 }
+
+// Canonical database names; retain existing badge styling.
+for (const [canonical, legacy] of Object.entries({'Available':'available','Assigned':'assigned','Under Maintenance':'maintenance','Disposed':'retired','Missing':'lost'})) ASSET_STATUS[canonical] = ASSET_STATUS[legacy]
+for (const name of ['Excellent','Good','Fair','Poor','Damaged','Unusable']) ASSET_CONDITION[name] = ASSET_CONDITION[name.toLowerCase()] || {label:name,className:badge(name==='Excellent'?'green':name==='Unusable'?'red':'neutral')}
+for (const name of ['Super Administrator','Property Administrator','Laboratory Administrator','IT Personnel','Faculty','Student']) ROLE[name] = {label:name,className:'chip bg-slate-100 text-slate-700'}
+
+for (const [code,label] of Object.entries({super_admin:'Super Administrator',property_admin:'Property Administrator',lab_admin:'Laboratory Administrator',it_personnel:'IT Personnel',faculty:'Faculty',student:'Student'})) ROLE[code] = {label,className:'chip bg-slate-100 text-slate-700'}

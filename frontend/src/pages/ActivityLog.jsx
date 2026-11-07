@@ -1,3 +1,4 @@
+import { humanizeActivity } from '../lib/inventoryView'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Activity as ActivityIcon,
@@ -117,7 +118,7 @@ export default function ActivityLog() {
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="card flex items-center gap-4 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-brand-50 text-brand-600">
             <ActivityIcon className="h-5 w-5" />
           </div>
           <div>
@@ -128,7 +129,7 @@ export default function ActivityLog() {
           </div>
         </div>
         <div className="card flex items-center gap-4 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-emerald-50 text-emerald-600">
             <Clock className="h-5 w-5" />
           </div>
           <div>
@@ -139,7 +140,7 @@ export default function ActivityLog() {
           </div>
         </div>
         <div className="card flex items-center gap-4 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-sky-50 text-sky-600">
             <Users className="h-5 w-5" />
           </div>
           <div>
@@ -211,7 +212,7 @@ export default function ActivityLog() {
               return (
                 <li key={log.id} className="flex items-start gap-3 px-5 py-4 hover:bg-slate-50/60">
                   <div
-                    className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.className}`}
+                    className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${meta.className}`}
                   >
                     <Icon className="h-4 w-4" />
                   </div>
@@ -224,7 +225,7 @@ export default function ActivityLog() {
                         {log.entity_id ? ` #${log.entity_id}` : ''}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-600">{log.detail || 'No details'}</p>
+                    <p className="mt-1 text-sm text-slate-600">{humanizeActivity(log) || 'No details'}</p>
                     <p className="mt-1 text-[11px] text-slate-400">
                       {formatDateTime(log.created_at)} · {timeAgo(log.created_at)}
                     </p>

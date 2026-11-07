@@ -107,7 +107,7 @@ function CategoryForm({ open, onClose, category, onSaved }) {
     >
       <form id="category-form" onSubmit={submit} className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700">
+          <div className="rounded-[10px] border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700">
             {error}
           </div>
         )}
@@ -148,13 +148,13 @@ function CategoryForm({ open, onClose, category, onSaved }) {
                 className={`h-9 w-9 rounded-full transition ${
                   form.color === color
                     ? 'ring-2 ring-slate-900 ring-offset-2'
-                    : 'hover:scale-110'
+                    : 'hover:outline hover:outline-2 hover:outline-slate-400'
                 }`}
                 style={{ backgroundColor: color }}
                 aria-label={`Use color ${color}`}
               />
             ))}
-            <label className="ml-1 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">
+            <label className="ml-1 inline-flex cursor-pointer items-center gap-2 rounded-[10px] border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">
               Custom
               <input
                 type="color"
@@ -179,7 +179,7 @@ export default function Categories() {
   const [query, setQuery] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteTarget, setDeactivateTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
@@ -216,13 +216,13 @@ export default function Categories() {
     setFormOpen(true)
   }
 
-  const handleDelete = async () => {
+  const handleDeactivate = async () => {
     if (!deleteTarget) return
     setDeleting(true)
     try {
       await api.delete(`/categories/${deleteTarget.id}`)
-      toast.success('Category deleted')
-      setDeleteTarget(null)
+      toast.success('Category deactivated; history retained')
+      setDeactivateTarget(null)
       load()
     } catch (err) {
       toast.error(err.message)
@@ -290,7 +290,7 @@ export default function Categories() {
           {filtered.map((category) => (
             <div
               key={category.id}
-              className="card group relative overflow-hidden p-5 transition hover:shadow-md"
+              className="card group relative overflow-hidden p-5 transition hover:border-slate-300"
             >
               <div
                 className="absolute inset-x-0 top-0 h-1"
@@ -298,7 +298,7 @@ export default function Categories() {
               />
               <div className="flex items-start gap-3">
                 <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] text-white shadow-sm"
                   style={{ backgroundColor: category.color }}
                 >
                   <Tags className="h-5 w-5" />
@@ -334,8 +334,8 @@ export default function Categories() {
                       <button
                         type="button"
                         className="icon-btn hover:bg-rose-50 hover:text-rose-600"
-                        onClick={() => setDeleteTarget(category)}
-                        title="Delete category"
+                        onClick={() => setDeactivateTarget(category)}
+                        title="Deactivate category"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -357,12 +357,12 @@ export default function Categories() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={handleDeactivate}
         loading={deleting}
-        title={`Delete ${deleteTarget?.name || 'category'}?`}
-        description="Categories with assets attached cannot be deleted. Reassign those assets first."
-        confirmLabel="Delete category"
+        title={`Deactivate ${deleteTarget?.name || 'category'}?`}
+        description="Categories with assets attached cannot be deactivated; history retained. Reassign those assets first."
+        confirmLabel="Deactivate category"
       />
     </div>
   )

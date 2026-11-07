@@ -52,7 +52,7 @@ export function ToastProvider({ children }) {
             <div
               key={item.id}
               className={cn(
-                'pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border p-3.5 shadow-lg shadow-slate-900/10',
+                'pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-[10px] border p-3.5 shadow-sm shadow-slate-900/10',
                 STYLES[item.type],
               )}
             >
@@ -63,7 +63,7 @@ export function ToastProvider({ children }) {
               <button
                 type="button"
                 onClick={() => remove(item.id)}
-                className="rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-[10px] p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                 aria-label="Dismiss notification"
               >
                 <X className="h-4 w-4" />

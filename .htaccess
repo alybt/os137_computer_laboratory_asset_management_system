@@ -1,0 +1,3 @@
+# Fail closed if the project directory is accidentally placed under htdocs.
+# Configure a VirtualHost whose DocumentRoot is public/ instead.
+Require all denied

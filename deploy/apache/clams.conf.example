@@ -1,0 +1,13 @@
+# Add to Apache httpd-vhosts.conf, enable the vhosts include, then restart Apache.
+# Point clams.local to 127.0.0.1 in the Windows hosts file as administrator.
+<VirtualHost *:80>
+    ServerName clams.local
+    DocumentRoot "C:/xampp/htdocs/os137_computer_laboratory_asset_management_system/public"
+    <Directory "C:/xampp/htdocs/os137_computer_laboratory_asset_management_system/public">
+        Options -Indexes
+        AllowOverride All
+        Require local
+    </Directory>
+    ErrorLog "logs/clams-error.log"
+    CustomLog "logs/clams-access.log" combined
+</VirtualHost>

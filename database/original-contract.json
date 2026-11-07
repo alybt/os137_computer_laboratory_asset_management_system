@@ -1,0 +1,89 @@
+{
+  "users": [
+    "id",
+    "full_name",
+    "email",
+    "password_hash",
+    "role",
+    "is_active",
+    "last_login_at",
+    "created_at"
+  ],
+  "laboratories": [
+    "id",
+    "name",
+    "code",
+    "building",
+    "room",
+    "capacity",
+    "description",
+    "created_at"
+  ],
+  "categories": [
+    "id",
+    "name",
+    "description",
+    "color",
+    "created_at"
+  ],
+  "assets": [
+    "id",
+    "asset_tag",
+    "name",
+    "description",
+    "category_id",
+    "laboratory_id",
+    "status",
+    "condition",
+    "brand",
+    "model",
+    "serial_number",
+    "supplier",
+    "purchase_date",
+    "purchase_cost",
+    "warranty_expiry",
+    "notes",
+    "created_by",
+    "created_at",
+    "updated_at"
+  ],
+  "assignments": [
+    "id",
+    "asset_id",
+    "borrower_name",
+    "borrower_email",
+    "department",
+    "purpose",
+    "assigned_by",
+    "assigned_at",
+    "due_date",
+    "returned_at",
+    "notes"
+  ],
+  "maintenance_records": [
+    "id",
+    "asset_id",
+    "title",
+    "description",
+    "maintenance_type",
+    "status",
+    "scheduled_date",
+    "completed_date",
+    "cost",
+    "performed_by",
+    "notes",
+    "created_by",
+    "created_at",
+    "updated_at"
+  ],
+  "activity_logs": [
+    "id",
+    "user_id",
+    "user_name",
+    "action",
+    "entity_type",
+    "entity_id",
+    "detail",
+    "created_at"
+  ]
+}

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { api, getToken, setToken } from '../lib/api'
+import { api, setToken } from '../lib/api'
 
 const AuthContext = createContext(null)
 
@@ -8,11 +8,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
-    if (!getToken()) {
-      setUser(null)
-      setLoading(false)
-      return null
-    }
     try {
       const me = await api.get('/auth/me')
       setUser(me)
@@ -47,8 +42,8 @@ export function AuthProvider({ children }) {
     return data.user
   }, [])
 
-  const logout = useCallback(() => {
-    setToken(null)
+  const logout = useCallback(async () => {
+    await api.post('/auth/logout', {})
     setUser(null)
   }, [])
 
@@ -60,8 +55,11 @@ export function AuthProvider({ children }) {
       login,
       logout,
       refresh,
-      isAdmin: user?.role === 'admin',
-      canWrite: user?.role === 'admin' || user?.role === 'technician',
+      isAdmin: user?.role === 'super_admin',
+      canManageLoans: user?.role === 'super_admin',
+      canManageMaintenance: user?.role === 'super_admin',
+      canManageLabs: user?.role === 'super_admin',
+      canWrite: user?.role === 'super_admin' || user?.role === 'property_admin',
     }),
     [user, loading, login, logout, refresh],
   )

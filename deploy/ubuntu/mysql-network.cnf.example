@@ -1,0 +1,5 @@
+# Copy to /etc/mysql/mysql.conf.d/clams-network.cnf after replacing this value.
+[mysqld]
+bind-address = REPLACE_WITH_UBUNTU_HOST_ONLY_IP
+# MySQL X protocol is unnecessary for PDO.
+mysqlx = 0

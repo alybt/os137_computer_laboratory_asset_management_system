@@ -1,31 +1,15 @@
-# Python
-backend/.venv/
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-.ruff_cache/
-
-# Environment files (keep the examples tracked)
 .env
-.env.*
-!.env.example
-
-# Local databases and logs
-backend/*.db
-backend/*.db-journal
-backend/*.db-shm
-backend/*.db-wal
-backend/*.sqlite3
+/vendor/
+/storage/*/*
+!/storage/*/.gitkeep
 *.log
+/.phpunit.cache/
 
-# Node / Vite
-node_modules/
-dist/
-.vite/
+/backups/
+/frontend/node_modules/
+/public/ui/
 
-# Editors and operating systems
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
+__pycache__/
+
+# Local account directory; contains names and sign-in email addresses.
+/docs/USERS-ACCOUNTS.local.md

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useId } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AlertTriangle,
@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '../lib/format'
+import { resultRange, pageNumbers } from '../lib/inventoryView'
 import {
   ASSET_CONDITION,
   ASSET_STATUS,
@@ -24,7 +25,7 @@ export function Spinner({ className = 'h-5 w-5' }) {
 
 export function LoadingBlock({ label = 'Loading…' }) {
   return (
-    <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-slate-400">
+    <div className="flex min-h-32 flex-col items-center justify-center gap-3 text-slate-400">
       <Spinner className="h-7 w-7 text-brand-500" />
       <p className="text-sm font-medium">{label}</p>
     </div>
@@ -33,8 +34,8 @@ export function LoadingBlock({ label = 'Loading…' }) {
 
 export function ErrorState({ message, onRetry }) {
   return (
-    <div className="card flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+    <div className="card flex flex-col items-center justify-center gap-3 px-6 py-7 text-center">
+      <div className="flex h-7 w-7 items-center justify-center text-rose-600">
         <AlertTriangle className="h-6 w-6" />
       </div>
       <div>
@@ -57,8 +58,8 @@ export function EmptyState({
   action,
 }) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+    <div className="flex flex-col items-center justify-center px-6 py-7 text-center">
+      <div className="flex h-7 w-7 items-center justify-center text-slate-400">
         <Icon className="h-6 w-6" />
       </div>
       <h3 className="mt-4 font-semibold text-slate-900">{title}</h3>
@@ -93,15 +94,27 @@ export function Modal({
   size = 'md',
   icon: Icon,
 }) {
+  const dialogRef = useRef(null)
+  const titleId = useId()
   useEffect(() => {
     if (!open) return undefined
+    const previousFocus = document.activeElement
+    const focusTimer = window.setTimeout(() => dialogRef.current?.querySelector('input,select,textarea,button,[tabindex="0"]')?.focus(), 0)
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKeyDown = (event) => {
       if (event.key === 'Escape') onClose?.()
+      if (event.key === 'Tab') {
+        const nodes = [...(dialogRef.current?.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]') || [])].filter(node => node.getClientRects().length)
+        const first = nodes[0], last = nodes[nodes.length - 1]
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+        if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => {
+      window.clearTimeout(focusTimer)
+      previousFocus?.focus()
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', onKeyDown)
     }
@@ -118,32 +131,34 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-0  sm:items-center sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose?.()
       }}
     >
       <div
         className={cn(
-          'flex max-h-[95vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl',
+          'flex max-h-[95vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-sm sm:rounded-[10px]',
           sizes[size] || sizes.md,
         )}
+        ref={dialogRef}
         role="dialog"
+        aria-labelledby={titleId}
         aria-modal="true"
       >
         <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
           {Icon && (
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded bg-transparent text-brand-600">
               <Icon className="h-5 w-5" />
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+            <h2 id={titleId} className="text-lg font-bold text-slate-900">{title}</h2>
             {description && (
               <p className="mt-0.5 text-sm text-slate-500">{description}</p>
             )}
           </div>
-          <button type="button" className="icon-btn -mr-1" onClick={onClose}>
+          <button type="button" className="icon-btn -mr-1" aria-label="Close dialog" onClick={onClose}>
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -203,8 +218,7 @@ export function ConfirmDialog({
 
 export function Pagination({ page, pages, total, pageSize, onPageChange }) {
   if (!total) return null
-  const start = (page - 1) * pageSize + 1
-  const end = Math.min(page * pageSize, total)
+  const [start, end] = resultRange(page, pageSize, total)
   return (
     <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
       <p className="text-xs font-medium text-slate-500">
@@ -216,17 +230,20 @@ export function Pagination({ page, pages, total, pageSize, onPageChange }) {
         <button
           type="button"
           className="icon-btn border border-slate-200"
+          aria-label="Previous page"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="px-2 text-xs font-semibold text-slate-600">
-          Page {page} of {Math.max(pages, 1)}
-        </span>
+        {pageNumbers(page, pages).map((number, index, numbers) => <span key={number} className="inline-flex items-center">
+          {index > 0 && number - numbers[index - 1] > 1 && <span className="px-1" aria-hidden="true">…</span>}
+          <button type="button" className={number === page ? 'btn-primary !px-3 !py-1.5' : 'icon-btn'} aria-label={`Page ${number}`} aria-current={number === page ? 'page' : undefined} onClick={() => onPageChange(number)}>{number}</button>
+        </span>)}
         <button
           type="button"
           className="icon-btn border border-slate-200"
+          aria-label="Next page"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= pages}
         >
@@ -243,6 +260,7 @@ export function SearchInput({ value, onChange, placeholder = 'Search…', classN
       <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <input
         type="search"
+        aria-label={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
@@ -297,7 +315,7 @@ export function StatusBadge({ kind, value }) {
     role: ROLE,
   }
   const meta = maps[kind]?.[value]
-  if (!meta) return <span className="chip bg-slate-100 text-slate-600">{value}</span>
+  if (!meta) return <span className="status-badge badge-neutral">{value || '—'}</span>
   return (
     <span className={meta.className}>
       {kind === 'asset' && (
@@ -308,40 +326,11 @@ export function StatusBadge({ kind, value }) {
   )
 }
 
-const ACCENTS = {
-  brand: 'bg-brand-50 text-brand-600',
-  emerald: 'bg-emerald-50 text-emerald-600',
-  amber: 'bg-amber-50 text-amber-600',
-  rose: 'bg-rose-50 text-rose-600',
-  sky: 'bg-sky-50 text-sky-600',
-  violet: 'bg-violet-50 text-violet-600',
-  slate: 'bg-slate-100 text-slate-600',
-}
-
-export function StatCard({ label, value, hint, icon: Icon, accent = 'brand' }) {
-  return (
-    <div className="card flex items-start gap-4 p-5">
-      {Icon && (
-        <div
-          className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-            ACCENTS[accent] || ACCENTS.brand,
-          )}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-      )}
-      <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {label}
-        </p>
-        <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-          {value}
-        </p>
-        {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
-      </div>
-    </div>
-  )
+export function StatCard({ label, value, hint, icon: Icon, accent='brand' }) {
+  return <div className="card summary-card">
+    {Icon && <div className={`summary-icon ${['brand','emerald','sky','amber'].includes(accent)?accent:'brand'}`}><Icon size={22} aria-hidden="true"/></div>}
+    <div className="min-w-0"><p className="summary-label">{label}</p><p className="summary-value">{value}</p>{hint && <p className="summary-hint">{hint}</p>}</div>
+  </div>
 }
 
 export function SectionCard({
@@ -359,7 +348,7 @@ export function SectionCard({
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="flex items-start gap-3">
             {Icon && (
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-transparent text-slate-500">
                 <Icon className="h-4 w-4" />
               </div>
             )}

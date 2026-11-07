@@ -1,0 +1,29 @@
+{
+  "name": "university/clams",
+  "description": "Windows-hosted university laboratory asset management with Ubuntu MySQL",
+  "type": "project",
+  "require": {
+    "php": ">=8.2",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-fileinfo": "*",
+    "ext-mbstring": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Clams\\": "app/"
+    }
+  },
+  "scripts": {
+    "test": [
+      "@php tests/run.php",
+      "@php tests/session.php",
+      "@php tests/passwords.php",
+      "@php tests/inventory.php",
+      "@php tests/operations.php",
+      "@php tests/administrator.php",
+      "@php tests/analytics.php"
+    ],
+    "diagnose": "@php bin/check-database.php"
+  }
+}

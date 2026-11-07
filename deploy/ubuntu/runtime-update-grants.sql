@@ -1,0 +1,23 @@
+-- Table-specific runtime updates only; history, reference permissions and version ledger immutable.
+GRANT UPDATE ON labassets.`users` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`laboratories` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`categories` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`assets` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`assignments` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`maintenance_records` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`password_reset_tokens` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`workstations` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`workstation_assets` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`borrow_requests` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`borrow_items` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`asset_transaction_locks` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`maintenance_requests` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`asset_transfers` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`inventory_audits` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`inventory_audit_items` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`asset_disposals` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`notifications` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`system_settings` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`departments` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`user_laboratories` TO 'labassets_app'@'192.168.56.1';
+GRANT UPDATE ON labassets.`attachments` TO 'labassets_app'@'192.168.56.1';

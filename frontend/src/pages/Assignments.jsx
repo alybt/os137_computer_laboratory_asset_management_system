@@ -33,7 +33,7 @@ const TABS = [
 ]
 
 export default function Assignments() {
-  const { isAdmin, canWrite } = useAuth()
+  const { isAdmin, canManageLoans: canWrite } = useAuth()
   const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -54,7 +54,7 @@ export default function Assignments() {
   const [loadingAssets, setLoadingAssets] = useState(false)
   const [returnTarget, setReturnTarget] = useState(null)
   const [returning, setReturning] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteTarget, setArchiveTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -142,13 +142,13 @@ export default function Assignments() {
     }
   }
 
-  const handleDelete = async () => {
+  const handleArchive = async () => {
     if (!deleteTarget) return
     setDeleting(true)
     try {
       await api.delete(`/assignments/${deleteTarget.id}`)
-      toast.success('Assignment deleted')
-      setDeleteTarget(null)
+      toast.success('Assignment archived; history retained')
+      setArchiveTarget(null)
       load()
     } catch (err) {
       toast.error(err.message)
@@ -208,7 +208,7 @@ export default function Assignments() {
 
       <div className="card mb-4 p-3 sm:p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="inline-flex w-full rounded-xl bg-slate-100 p-1 sm:w-auto">
+          <div className="inline-flex w-full rounded-[10px] bg-slate-100 p-1 sm:w-auto">
             {TABS.map((item) => (
               <button
                 key={item.value}
@@ -340,8 +340,8 @@ export default function Assignments() {
                             <button
                               type="button"
                               className="icon-btn hover:bg-rose-50 hover:text-rose-600"
-                              onClick={() => setDeleteTarget(assignment)}
-                              title="Delete assignment"
+                              onClick={() => setArchiveTarget(assignment)}
+                              title="Archive assignment"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -376,7 +376,7 @@ export default function Assignments() {
       />
 
       {loadingAssets && formOpen && !editing && (
-        <div className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-lg">
+        <div className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm">
           Loading available assets…
         </div>
       )}
@@ -397,12 +397,12 @@ export default function Assignments() {
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={handleArchive}
         loading={deleting}
-        title="Delete this assignment?"
-        description="The check-out history will be removed. The asset will be marked available if it is still out."
-        confirmLabel="Delete assignment"
+        title="Archive this assignment?"
+        description="Returned assignments are archived; their history is retained. Record the physical return first if the item is still out."
+        confirmLabel="Archive assignment"
       />
     </div>
   )
